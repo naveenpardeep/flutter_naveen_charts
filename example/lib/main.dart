@@ -1,5 +1,5 @@
 import 'dart:math';
-import 'package:flutter_naveen_charts/chartify.dart';
+import 'package:flutter_naveen_charts/flutter_naveen_charts.dart';
 import 'package:flutter/material.dart';
 
 void main() => runApp(const GalleryApp());

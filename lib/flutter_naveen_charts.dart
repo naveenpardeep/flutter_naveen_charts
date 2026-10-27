@@ -1,5 +1,5 @@
 /// Chartify - dependency-free charts for Flutter.
-library chartify;
+library flutter_naveen_charts;
 
 export 'src/core/chart_theme.dart';
 export 'src/core/chart_canvas.dart';
