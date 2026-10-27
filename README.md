@@ -43,6 +43,8 @@ GaugeChart(value: 72, unit: '%', segments: [
 ])
 ```
 
+
+
 Numeric x axes: use `LineSeries(name: 'x', points: [DataPoint(0.5, 3), DataPoint(2.1, 7)])`.
 Bubbles: `DataPoint(x, y, size: 40)`.
 
@@ -50,4 +52,17 @@ Bubbles: `DataPoint(x, y, size: 40)`.
 
 Screenshots
 
-![alt text](Screenshot_1793107603.png) ![alt text](Screenshot_1793107608.png) ![alt text](Screenshot_1793107617.png) ![alt text](Screenshot_1793107624.png) ![alt text](Screenshot_1793107632.png) ![alt text](Screenshot_1793107637.png) ![alt text](Screenshot_1793107597.png)
+![alt text](Screenshot_1793107603.png)
+
+ ![alt text](Screenshot_1793107608.png)
+ 
+  ![alt text](Screenshot_1793107617.png) 
+  
+  ![alt text](Screenshot_1793107624.png)
+  
+   ![alt text](Screenshot_1793107632.png) 
+   
+   ![alt text](Screenshot_1793107637.png) 
+   
+   
+   ![alt text](Screenshot_1793107597.png)
