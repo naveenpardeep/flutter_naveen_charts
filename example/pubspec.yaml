@@ -1,5 +1,5 @@
-name: chartify_example
-description: Gallery of every chartify chart.
+name: flutter_naveen_charts_example
+description: Gallery of every flutter_naveen_charts chart.
 publish_to: none
 version: 1.0.0
 environment:
@@ -7,7 +7,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  chartify:
+  flutter_naveen_charts:
     path: ../
 flutter:
   uses-material-design: true

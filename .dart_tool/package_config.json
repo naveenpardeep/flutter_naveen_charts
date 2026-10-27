@@ -146,7 +146,7 @@
       "languageVersion": "3.5"
     },
     {
-      "name": "chartify",
+      "name": "flutter_naveen_charts",
       "rootUri": "../",
       "packageUri": "lib/",
       "languageVersion": "3.0"

@@ -1,6 +1,6 @@
-# chartify
+# flutter_naveen_charts
 
-Dependency-free charts for Flutter, drawn with `CustomPainter`.
+Free charts for Flutter, drawn with `CustomPainter`.
 Intro animations, hover / touch tooltips, legends and light/dark themes are built in.
 
 | Chart | Widget |
@@ -22,8 +22,6 @@ Intro animations, hover / touch tooltips, legends and light/dark themes are buil
 
 ## Quick start
 
-```dart
-import 'package:chartify/chartify.dart';
 
 LineChart(
   xLabels: ['Jan', 'Feb', 'Mar', 'Apr'],
