@@ -1,0 +1,13 @@
+name: chartify_example
+description: Gallery of every chartify chart.
+publish_to: none
+version: 1.0.0
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+dependencies:
+  flutter:
+    sdk: flutter
+  chartify:
+    path: ../
+flutter:
+  uses-material-design: true

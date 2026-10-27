@@ -1,0 +1,12 @@
+name: chartify
+description: A dependency-free Flutter chart toolkit - line, area, bar, stacked bar, scatter, bubble, histogram, pie, donut, radar, gauge, candlestick, heatmap, funnel and sparkline charts drawn with CustomPainter.
+version: 0.1.0
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=3.10.0"
+dependencies:
+  flutter:
+    sdk: flutter
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
