@@ -39,6 +39,7 @@ class FunnelChart extends StatelessWidget {
   }
 }
 
+/// Funnel Painter
 class _FunnelPainter extends CustomPainter {
   _FunnelPainter(this.stages, this.theme, this.progress);
   final List<FunnelStage> stages;

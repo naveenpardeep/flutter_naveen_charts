@@ -41,6 +41,7 @@ class HeatmapChart extends StatelessWidget {
   }
 }
 
+/// heat Painter
 class _HeatPainter extends CustomPainter {
   _HeatPainter(this.w, this.theme, this.progress, this.pointer);
   final HeatmapChart w;
@@ -81,8 +82,9 @@ class _HeatPainter extends CustomPainter {
         final x = v[r][c];
         final t = hi == lo ? .5 : (x - lo) / (hi - lo);
         final color = Color.lerp(w.lowColor, w.highColor, t)!;
-        final rect = Rect.fromLTWH(plot.left + c * cw, plot.top + r * ch, cw, ch)
-            .deflate(1.5);
+        final rect =
+            Rect.fromLTWH(plot.left + c * cw, plot.top + r * ch, cw, ch)
+                .deflate(1.5);
         canvas.drawRRect(
             RRect.fromRectAndRadius(rect, const Radius.circular(4)),
             Paint()..color = color.faded(progress));
@@ -101,9 +103,13 @@ class _HeatPainter extends CustomPainter {
     }
     if (w.colLabels != null) {
       for (var c = 0; c < cols && c < w.colLabels!.length; c++) {
-        paintText(canvas, w.colLabels![c],
-            Offset(plot.left + (c + .5) * cw, plot.bottom + 6), theme.labelStyle,
-            align: Alignment.topCenter, maxWidth: cw);
+        paintText(
+            canvas,
+            w.colLabels![c],
+            Offset(plot.left + (c + .5) * cw, plot.bottom + 6),
+            theme.labelStyle,
+            align: Alignment.topCenter,
+            maxWidth: cw);
       }
     }
 

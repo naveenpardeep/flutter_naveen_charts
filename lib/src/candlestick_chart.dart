@@ -47,6 +47,7 @@ class CandlestickChart extends StatelessWidget {
   }
 }
 
+///Candle Painter
 class _CandlePainter extends CustomPainter {
   _CandlePainter(this.w, this.theme, this.progress, this.pointer);
   final CandlestickChart w;
@@ -65,7 +66,8 @@ class _CandlePainter extends CustomPainter {
     final labelW = ticks
         .map((t) => measureText(formatNumber(t), theme.labelStyle).width)
         .fold<double>(0, math.max);
-    final plot = Rect.fromLTRB(labelW + 12, 10, size.width - 12, size.height - 28);
+    final plot =
+        Rect.fromLTRB(labelW + 12, 10, size.width - 12, size.height - 28);
     if (plot.width <= 0 || plot.height <= 0) return;
     double sy(double v) =>
         plot.bottom - (v - scale.min) / (scale.max - scale.min) * plot.height;
@@ -76,7 +78,8 @@ class _CandlePainter extends CustomPainter {
       ..color = theme.gridColor
       ..strokeWidth = 1;
     for (final t in ticks) {
-      canvas.drawLine(Offset(plot.left, sy(t)), Offset(plot.right, sy(t)), grid);
+      canvas.drawLine(
+          Offset(plot.left, sy(t)), Offset(plot.right, sy(t)), grid);
       paintText(canvas, formatNumber(t), Offset(plot.left - 6, sy(t)),
           theme.labelStyle,
           align: Alignment.centerRight);
@@ -86,15 +89,17 @@ class _CandlePainter extends CustomPainter {
         .fold<double>(0, math.max);
     final every = math.max(1, ((maxW + 8) / unit).ceil());
     for (var i = 0; i < cs.length; i += every) {
-      paintText(canvas, cs[i].label, Offset(cx(i), plot.bottom + 6),
-          theme.labelStyle,
+      paintText(
+          canvas, cs[i].label, Offset(cx(i), plot.bottom + 6), theme.labelStyle,
           align: Alignment.topCenter);
     }
 
+    /// for hover
     int? hover;
     final ptr = pointer;
     if (ptr != null && plot.inflate(6).contains(ptr)) {
-      hover = ((ptr.dx - plot.left) / unit).floor().clamp(0, cs.length - 1).toInt();
+      hover =
+          ((ptr.dx - plot.left) / unit).floor().clamp(0, cs.length - 1).toInt();
       canvas.drawRect(
           Rect.fromLTWH(plot.left + hover * unit, plot.top, unit, plot.height),
           Paint()..color = theme.axisColor.faded(.15));
@@ -110,7 +115,8 @@ class _CandlePainter extends CustomPainter {
       final paint = Paint()
         ..color = color
         ..strokeWidth = 1.5;
-      canvas.drawLine(Offset(cx(i), sy(c.high)), Offset(cx(i), sy(c.low)), paint);
+      canvas.drawLine(
+          Offset(cx(i), sy(c.high)), Offset(cx(i), sy(c.low)), paint);
       final top = sy(math.max(c.open, c.close));
       final bottom = sy(math.min(c.open, c.close));
       canvas.drawRect(

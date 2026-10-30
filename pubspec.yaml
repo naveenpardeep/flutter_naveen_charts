@@ -1,6 +1,6 @@
 name: flutter_naveen_charts
 homepage: https://github.com/naveenpardeep/flutter_naveen_charts.git
-description: Free Flutter chart toolkit - line, area, bar, stacked bar, scatter, bubble, histogram, pie, donut, radar, gauge, candlestick, heatmap, funnel and sparkline charts drawn with CustomPainter.
+description: Flutter chart toolkit - line, area, bar, stacked bar, scatter, bubble, histogram, pie, donut, radar, gauge, candlestick, heatmap, funnel etc charts drawn with CustomPainter.
 version: 1.0.2
 environment:
   sdk: ">=3.0.0 <4.0.0"
