@@ -23,9 +23,14 @@ class PieChart extends StatelessWidget {
     this.showPercent = true,
     this.showLegend = true,
     this.aspectRatio = 1.4,
+    this.startAngle = -math.pi / 2,
+    this.sweepAngle = 2 * math.pi,
     this.theme,
     this.animationDuration = const Duration(milliseconds: 900),
   });
+  /// First slice starts here (radians, 0 = 3 o'clock). Use sweepAngle: pi for a semi-circle.
+  final double startAngle;
+  final double sweepAngle;
   final List<PieSlice> slices;
   final bool donut;
   final double holeRatio;
@@ -45,7 +50,7 @@ class PieChart extends StatelessWidget {
         child: ChartCanvas(
           duration: animationDuration,
           builder: (p, ptr) => _PiePainter(slices, donut ? holeRatio : 0,
-              centerText, showPercent, t, p, ptr),
+              centerText, showPercent, t, p, ptr, startAngle, sweepAngle),
         ),
       ),
       if (showLegend)
@@ -74,7 +79,9 @@ class DonutChart extends StatelessWidget {
 
 class _PiePainter extends CustomPainter {
   _PiePainter(this.slices, this.hole, this.centerText, this.showPercent,
-      this.theme, this.progress, this.pointer);
+      this.theme, this.progress, this.pointer, this.startAngle, this.sweepAngle);
+  final double startAngle;
+  final double sweepAngle;
   final List<PieSlice> slices;
   final double hole;
   final String? centerText;
@@ -82,7 +89,7 @@ class _PiePainter extends CustomPainter {
   final ChartTheme theme;
   final double progress;
   final Offset? pointer;
-  static const double _start = -math.pi / 2;
+  double get _start => startAngle;
 
   Path _sector(Offset c, double r0, double r1, double a0, double sweep) {
     final p = Path()..arcTo(Rect.fromCircle(center: c, radius: r1), a0, sweep, true);
@@ -112,7 +119,7 @@ class _PiePainter extends CustomPainter {
         final a = (math.atan2(d.dy, d.dx) - _start) % (2 * math.pi);
         double acc = 0;
         for (var i = 0; i < slices.length; i++) {
-          final full = math.max(0, slices[i].value) / total * 2 * math.pi;
+          final full = math.max(0, slices[i].value) / total * sweepAngle;
           if (a >= acc && a < acc + full) {
             hover = i;
             break;
@@ -126,7 +133,7 @@ class _PiePainter extends CustomPainter {
     final gap = slices.length > 1 ? 0.02 : 0.0;
     for (var i = 0; i < slices.length; i++) {
       final v = math.max(0.0, slices[i].value);
-      final full = v / total * 2 * math.pi;
+      final full = v / total * sweepAngle;
       final sweep = full * progress;
       final mid = a0 + sweep / 2;
       final shift = hover == i ? Offset.fromDirection(mid, 7) : Offset.zero;

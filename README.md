@@ -19,38 +19,120 @@ Intro animations, hover / touch tooltips, legends and light/dark themes are buil
 | Funnel | `FunnelChart` |
 | Sparkline | `Sparkline` |
 
+## Charts (27)
+
+| Family | Widgets |
+|---|---|
+| Cartesian | `LineChart`, `AreaChart`, `StackedAreaChart` (+100 %), `BarChart` (grouped / stacked), `HorizontalBarChart` (+ `.pyramid`), `ScatterChart`, `BubbleChart`, `Histogram`, `CartesianChart` (combo, dual y-axes, zoom & pan) |
+| Statistical | `BoxPlotChart` (quartiles, whiskers, outliers, mean), `Histogram`, `CandlestickChart` |
+| Part-to-whole | `PieChart`, `DonutChart` (full or semi-circle), `PolarAreaChart`, `RadialBarChart`, `SunburstChart`, `TreemapChart`, `FunnelChart` |
+| Flow | `SankeyChart`, `WaterfallChart` |
+| Comparison / KPI | `RadarChart`, `GaugeChart`, `BulletChart`, `Sparkline` |
+| Matrix / time | `HeatmapChart`, `CalendarHeatmap`, `GanttChart` |
 
 ## Quick start
 
+```dart
+import 'package:flutter_naveen_charts/flutter_naveen_charts.dart';
 
 LineChart(
-  xLabels: ['Jan', 'Feb', 'Mar', 'Apr'],
+  xLabels: ['Jan', 'Feb', 'Mar'],
+  series: [LineSeries.fromValues(name: 'Sales', values: [12, 18, 15])],
+  options: CartesianOptions(
+    xAxisTitle: 'Month',
+    yAxisTitle: 'Sales (k)',
+    referenceLines: [ReferenceLine(16, label: 'Target')],
+  ),
+)
+```
+
+### Dual y-axes
+
+```dart
+CartesianChart(
+  xLabels: months,
+  options: CartesianOptions(
+    yAxisTitle: 'Revenue',
+    secondaryAxisTitle: 'Conversion',
+    secondaryYFormat: (v) => '${v.toStringAsFixed(0)}%',
+  ),
   series: [
-    LineSeries.fromValues(name: 'Sales', values: [12, 18, 15, 22]),
-    LineSeries.fromValues(name: 'Costs', values: [10, 12, 14, 16], dashed: true),
+    BarSeries.fromValues(name: 'Revenue', values: revenue),
+    LineSeries.fromValues(name: 'Conversion', values: conv, secondaryAxis: true),
   ],
 )
+```
 
-BarChart(stacked: true, xLabels: ['Q1', 'Q2'], series: [
-  BarSeries.fromValues(name: 'A', values: [30, 40]),
-  BarSeries.fromValues(name: 'B', values: [20, 25]),
+### Zoom & pan
+
+`CartesianOptions(zoomable: true)`: pinch or mouse wheel to zoom, drag to pan, double-tap to reset
+(`maxZoom` sets the limit). A zoomable chart captures drag gestures, so keep it out of a
+horizontally scrolling parent.
+
+### Hierarchies (treemap, sunburst)
+
+```dart
+const tree = [
+  HierarchyNode('Electronics', children: [
+    HierarchyNode('Phones', value: 120),
+    HierarchyNode('Laptops', value: 90),
+  ]),
+  HierarchyNode('Toys', value: 50),
+];
+TreemapChart(nodes: tree);
+SunburstChart(roots: tree);
+```
+
+### Sankey
+
+```dart
+SankeyChart(
+  nodes: [SankeyNode('a', label: 'Search'), SankeyNode('b', label: 'Landing')],
+  links: [SankeyLink('a', 'b', 40)],
+)
+```
+
+### Box plot
+
+```dart
+BoxPlotChart(data: [
+  BoxPlotStats.fromValues('Group A', samplesA),            // from raw samples
+  BoxPlotStats(label: 'B', min: 1, q1: 2, median: 3, q3: 4, max: 6), // or precomputed
 ])
+```
+
+## Customisation
+
+* **`CartesianOptions`** (line / area / bar / scatter / combo): `title`, `xAxisTitle`, `yAxisTitle`,
+  `secondaryAxisTitle`, `gridMode` (none / horizontal / vertical / both), `dashedGrid`, `showLegend`,
+  `showValueLabels`, `referenceLines`, `zoomable`, `maxZoom`, `yFormat`, `xFormat`, `secondaryYFormat`,
+  `yMin` / `yMax`, `secondaryYMin` / `secondaryYMax`, `barWidthFactor`, `interactive`.
+* **Series**: colour, `curved`, `stepped`, `dashed`, `fill`, `strokeWidth`, `showMarkers`, `markerRadius`,
+  `cornerRadius` (bars), `markerSize` / `maxBubbleRadius` (scatter), `secondaryAxis`.
+* **Pie / donut**: `donut`, `holeRatio`, `centerText`, `showPercent`, `startAngle`, `sweepAngle`.
+* **Gauge**: `min`, `max`, `segments`, `color`, `strokeWidth`, `unit`, `label`.
+* **Radial bar**: `maxValue`, `startAngle`, `sweepAngle`, `ringWidth`, `ringGap`, `centerText`.
+* **Sankey**: `nodeWidth`, `nodePadding`, `linkOpacity`, per-node and per-link colours.
+* **Waterfall**: `positiveColor`, `negativeColor`, `totalColor`, `showConnectors`.
+* **Treemap**: `padding`, `cornerRadius`, `showValues`. **Sunburst**: `holeRatio`, `centerLabel`.
+* **Heatmaps**: `lowColor`, `highColor`, `emptyColor`, `showValues`, `weeks`, `cellGap`.
+* **Every chart**: `theme` (a `ChartTheme`: palette, grid / axis / text colours, tooltip styles), `aspectRatio`,
+  `animationDuration` (`Duration.zero` disables the intro animation), `valueFormat` / `yFormat` formatters.
+* **Your own chart**: `ChartCanvas(builder: (progress, pointer) => MyPainter(...))` gives you the animation
+  value (0..1) and the hover / touch position; helpers `NiceScale`, `paintText`, `paintTooltip`,
+  `buildLinePath` and `sectorPath` are exported.
+
+```dart
+final brand = ChartTheme.light().copyWith(palette: [Colors.teal, Colors.amber, Colors.pink]);
+BarChart(theme: brand, series: [...])
+```
+
+
+
+
+
 Screenshots
-
-![alt text](Screenshot_1793107603.png)
-
- ![alt text](Screenshot_1793107608.png)
- 
-  ![alt text](Screenshot_1793107617.png) 
-  
-  ![alt text](Screenshot_1793107624.png)
-  
-   ![alt text](Screenshot_1793107632.png) 
-   
-   ![alt text](Screenshot_1793107637.png) 
-   
-   
-   ![alt text](Screenshot_1793107597.png)
+![alt text](Screenshot_1793651485.png) ![alt text](Screenshot_1793651492.png) ![alt text](Screenshot_1793651400.png) ![alt text](Screenshot_1793651393.png) ![alt text](Screenshot_1793651499.png) ![alt text](Screenshot_1793651407.png) ![alt text](Screenshot_1793651506.png) ![alt text](Screenshot_1793651424.png) ![alt text](Screenshot_1793651512.png) ![alt text](Screenshot_1793651441.png) ![alt text](Screenshot_1793651518.png) ![alt text](Screenshot_1793651450.png) ![alt text](Screenshot_1793651475.png) ![alt text](Screenshot_1793651385.png) ![alt text](Screenshot_1793651379.png) ![alt text](Screenshot_1793651371.png)
    
 DonutChart(centerText: '1,240', slices: [PieSlice('Done', 62), PieSlice('Todo', 38)])
 
@@ -70,4 +152,3 @@ Any help or suggestion contact me naveensheoran1000@gmail.com or telegram @Navee
 
 For Support : USDT  <Tron Network>  TQyNG1GkMdYuEFNoY8JHVujmv8yGTcX2HS
 
-![alt text](image.png)

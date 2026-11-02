@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../core/chart_canvas.dart';
 import '../core/chart_theme.dart';
@@ -7,20 +8,16 @@ import '../core/legend.dart';
 import 'models.dart';
 
 /// The general x/y chart. Mix any [LineSeries], [AreaSeries], [BarSeries]
-/// and [ScatterSeries] in one chart (combo charts).
-class CartesianChart extends StatelessWidget {
+/// and [ScatterSeries]; put series on a second y axis with
+/// `secondaryAxis: true`; enable zoom/pan with `options.zoomable`.
+class CartesianChart extends StatefulWidget {
   const CartesianChart({
     super.key,
     required this.series,
     this.xLabels,
     this.barMode = BarMode.grouped,
+    this.options = const CartesianOptions(),
     this.aspectRatio = 1.6,
-    this.showLegend = true,
-    this.showGrid = true,
-    this.interactive = true,
-    this.yFormat,
-    this.yMin,
-    this.yMax,
     this.theme,
     this.animationDuration = const Duration(milliseconds: 900),
   });
@@ -30,47 +27,98 @@ class CartesianChart extends StatelessWidget {
   /// Category names for x = 0, 1, 2 ... (switches the x axis to categories).
   final List<String>? xLabels;
   final BarMode barMode;
+  final CartesianOptions options;
   final double aspectRatio;
-  final bool showLegend;
-  final bool showGrid;
-  final bool interactive;
-  final String Function(double)? yFormat;
-  final double? yMin;
-  final double? yMax;
   final ChartTheme? theme;
   final Duration animationDuration;
 
   @override
+  State<CartesianChart> createState() => _CartesianChartState();
+}
+
+class _CartesianChartState extends State<CartesianChart> {
+  double _start = 0, _span = 1, _s0 = 1, _anchor = 0;
+
+  void _setView(double start, double span) {
+    final sp = span.clamp(1 / widget.options.maxZoom, 1.0).toDouble();
+    final st = start.clamp(0.0, 1 - sp).toDouble();
+    setState(() {
+      _start = st;
+      _span = sp;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final t = theme ?? ChartTheme.of(context);
+    final o = widget.options;
+    final t = widget.theme ?? ChartTheme.of(context);
+    final canvas = ChartCanvas(
+      duration: widget.animationDuration,
+      interactive: o.interactive,
+      builder: (p, ptr) => _CartesianPainter(
+        series: widget.series,
+        xLabels: widget.xLabels,
+        theme: t,
+        progress: p,
+        pointer: ptr,
+        barMode: widget.barMode,
+        o: o,
+        viewStart: _start,
+        viewSpan: _span,
+      ),
+    );
+    Widget body = canvas;
+    if (o.zoomable) {
+      body = LayoutBuilder(builder: (context, c) {
+        final w = math.max(1.0, c.maxWidth);
+        return Listener(
+          onPointerSignal: (e) {
+            if (e is PointerScrollEvent) {
+              final f = e.scrollDelta.dy > 0 ? 1.15 : 1 / 1.15;
+              final fx = e.localPosition.dx / w;
+              final anchor = _start + fx * _span;
+              final span =
+                  (_span * f).clamp(1 / o.maxZoom, 1.0).toDouble();
+              _setView(anchor - fx * span, span);
+            }
+          },
+          child: GestureDetector(
+            onDoubleTap: () => _setView(0, 1),
+            onScaleStart: (d) {
+              _s0 = _span;
+              _anchor = _start + d.localFocalPoint.dx / w * _span;
+            },
+            onScaleUpdate: (d) {
+              final span =
+                  (_s0 / d.scale).clamp(1 / o.maxZoom, 1.0).toDouble();
+              _setView(_anchor - d.localFocalPoint.dx / w * span, span);
+            },
+            child: canvas,
+          ),
+        );
+      });
+    }
     return Column(mainAxisSize: MainAxisSize.min, children: [
-      if (showLegend && series.length > 1)
+      if (o.title != null)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text(o.title!, style: Theme.of(context).textTheme.titleSmall),
+        ),
+      if (o.showLegend && widget.series.length > 1)
         Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: ChartLegend(theme: t, items: [
-            for (var i = 0; i < series.length; i++)
-              LegendItem(series[i].name, series[i].color ?? t.colorAt(i)),
+            for (var i = 0; i < widget.series.length; i++)
+              LegendItem(
+                  widget.series[i].name +
+                      (widget.series[i].secondaryAxis &&
+                              widget.series[i] is! BarSeries
+                          ? ' (right)'
+                          : ''),
+                  widget.series[i].color ?? t.colorAt(i)),
           ]),
         ),
-      AspectRatio(
-        aspectRatio: aspectRatio,
-        child: ChartCanvas(
-          duration: animationDuration,
-          interactive: interactive,
-          builder: (p, ptr) => _CartesianPainter(
-            series: series,
-            xLabels: xLabels,
-            theme: t,
-            progress: p,
-            pointer: ptr,
-            barMode: barMode,
-            showGrid: showGrid,
-            yFormat: yFormat,
-            yMin: yMin,
-            yMax: yMax,
-          ),
-        ),
-      ),
+      AspectRatio(aspectRatio: widget.aspectRatio, child: body),
     ]);
   }
 }
@@ -83,10 +131,9 @@ class _CartesianPainter extends CustomPainter {
     required this.progress,
     required this.pointer,
     required this.barMode,
-    required this.showGrid,
-    this.yFormat,
-    this.yMin,
-    this.yMax,
+    required this.o,
+    required this.viewStart,
+    required this.viewSpan,
   });
 
   final List<CartesianSeries> series;
@@ -95,26 +142,46 @@ class _CartesianPainter extends CustomPainter {
   final double progress;
   final Offset? pointer;
   final BarMode barMode;
-  final bool showGrid;
-  final String Function(double)? yFormat;
-  final double? yMin;
-  final double? yMax;
+  final CartesianOptions o;
+  final double viewStart, viewSpan;
 
   Color _color(int i) => series[i].color ?? theme.colorAt(i);
+  bool _isSec(CartesianSeries s) =>
+      s.secondaryAxis && s is! BarSeries && s.points.isNotEmpty;
+
+  void _line(Canvas c, Offset a, Offset b, Paint p, bool dashed) {
+    if (dashed) {
+      c.drawPath(dashPath(Path()..moveTo(a.dx, a.dy)..lineTo(b.dx, b.dy), dash: 3, gap: 3), p..style = PaintingStyle.stroke);
+    } else {
+      c.drawLine(a, b, p);
+    }
+  }
+
+  void _rotText(Canvas c, String t, Offset at, double angle, TextStyle s) {
+    c.save();
+    c.translate(at.dx, at.dy);
+    c.rotate(angle);
+    paintText(c, t, Offset.zero, s);
+    c.restore();
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
     if (series.every((s) => s.points.isEmpty)) return;
     final stacked = barMode == BarMode.stacked;
     final hasBars = series.any((s) => s is BarSeries);
-    final hasFill = series.any((s) => s is LineSeries && s.fill);
+    final hasFill = series.any((s) => s is LineSeries && s.fill && !_isSec(s));
+    final hasFill2 = series.any((s) => s is LineSeries && s.fill && _isSec(s));
+    final hasSec = series.any(_isSec);
 
     // ---- data domain
     double xLo = double.infinity, xHi = -double.infinity;
-    double yLo = double.infinity, yHi = -double.infinity;
+    final yLo = [double.infinity, double.infinity];
+    final yHi = [-double.infinity, -double.infinity];
     final posSum = <double, double>{};
     final negSum = <double, double>{};
     for (final s in series) {
+      final k = _isSec(s) ? 1 : 0;
       for (final p in s.points) {
         xLo = math.min(xLo, p.x);
         xHi = math.max(xHi, p.x);
@@ -125,16 +192,20 @@ class _CartesianPainter extends CustomPainter {
             negSum[p.x] = (negSum[p.x] ?? 0) + p.y;
           }
         } else {
-          yLo = math.min(yLo, p.y);
-          yHi = math.max(yHi, p.y);
+          yLo[k] = math.min(yLo[k], p.y);
+          yHi[k] = math.max(yHi[k], p.y);
         }
       }
     }
     for (final v in posSum.values) {
-      yHi = math.max(yHi, v);
+      yHi[0] = math.max(yHi[0], v);
     }
     for (final v in negSum.values) {
-      yLo = math.min(yLo, v);
+      yLo[0] = math.min(yLo[0], v);
+    }
+    for (var k = 0; k < 2; k++) {
+      if (!yLo[k].isFinite) yLo[k] = yHi[k].isFinite ? yHi[k] : 0;
+      if (!yHi[k].isFinite) yHi[k] = yLo[k];
     }
     if (xLabels != null) {
       xLo = -0.5;
@@ -146,60 +217,127 @@ class _CartesianPainter extends CustomPainter {
       xLo -= 1;
       xHi += 1;
     }
-    final scale = NiceScale.compute(yMin ?? yLo, yMax ?? yHi,
-        includeZero: yMin == null && (hasBars || hasFill));
+    final s1 = NiceScale.compute(o.yMin ?? yLo[0], o.yMax ?? yHi[0],
+        includeZero: o.yMin == null && (hasBars || hasFill));
+    final s2 = hasSec
+        ? NiceScale.compute(o.secondaryYMin ?? yLo[1], o.secondaryYMax ?? yHi[1],
+            includeZero: o.secondaryYMin == null && hasFill2)
+        : null;
 
     // ---- layout
-    final fmt = yFormat ?? formatNumber;
-    final yTicks = scale.ticks;
-    final yLabelW = yTicks
-        .map((t) => measureText(fmt(t), theme.labelStyle).width)
+    final f1 = o.yFormat ?? formatNumber;
+    final f2 = o.secondaryYFormat ?? formatNumber;
+    double labelW(NiceScale s, String Function(double) f) => s.ticks
+        .map((t) => measureText(f(t), theme.labelStyle).width)
         .fold<double>(0, math.max);
-    final plot =
-        Rect.fromLTRB(yLabelW + 12, 10, size.width - 12, size.height - 28);
+    final leftPad = labelW(s1, f1) + 12 + (o.yAxisTitle != null ? 16 : 0);
+    final rightPad = 12 +
+        (s2 != null
+            ? labelW(s2, f2) + 8 + (o.secondaryAxisTitle != null ? 16 : 0)
+            : 0);
+    final bottomPad = 28 + (o.xAxisTitle != null ? 16 : 0);
+    final plot = Rect.fromLTRB(
+        leftPad, 10, size.width - rightPad, size.height - bottomPad);
     if (plot.width <= 0 || plot.height <= 0) return;
-    double sx(double x) => plot.left + (x - xLo) / (xHi - xLo) * plot.width;
-    double sy(double y) =>
-        plot.bottom - (y - scale.min) / (scale.max - scale.min) * plot.height;
 
-    // ---- grid & axes
+    final full = xHi - xLo;
+    final vLo = xLo + viewStart * full;
+    final vHi = vLo + viewSpan * full;
+    double sx(double x) => plot.left + (x - vLo) / (vHi - vLo) * plot.width;
+    double sy1(double y) =>
+        plot.bottom - (y - s1.min) / (s1.max - s1.min) * plot.height;
+    double sy2(double y) => s2 == null
+        ? sy1(y)
+        : plot.bottom - (y - s2.min) / (s2.max - s2.min) * plot.height;
+    double Function(double) syOf(CartesianSeries s) => _isSec(s) ? sy2 : sy1;
+
+    // ---- horizontal grid & y labels
     final gridPaint = Paint()
       ..color = theme.gridColor
       ..strokeWidth = 1;
-    for (final t in yTicks) {
-      final y = sy(t);
-      if (showGrid) {
-        canvas.drawLine(Offset(plot.left, y), Offset(plot.right, y), gridPaint);
-      }
-      paintText(canvas, fmt(t), Offset(plot.left - 6, y), theme.labelStyle,
+    final hGrid = o.gridMode == GridMode.horizontal || o.gridMode == GridMode.both;
+    final vGrid = o.gridMode == GridMode.vertical || o.gridMode == GridMode.both;
+    for (final t in s1.ticks) {
+      final y = sy1(t);
+      if (hGrid) _line(canvas, Offset(plot.left, y), Offset(plot.right, y), gridPaint, o.dashedGrid);
+      paintText(canvas, f1(t), Offset(plot.left - 6, y), theme.labelStyle,
           align: Alignment.centerRight);
     }
-    final zeroY = sy(0).clamp(plot.top, plot.bottom).toDouble();
-    canvas.drawLine(
-        Offset(plot.left, zeroY),
-        Offset(plot.right, zeroY),
+    if (s2 != null) {
+      final c2 = series.indexWhere(_isSec);
+      final style = theme.labelStyle.copyWith(color: _color(c2));
+      for (final t in s2.ticks) {
+        paintText(canvas, f2(t), Offset(plot.right + 6, sy2(t)), style,
+            align: Alignment.centerLeft);
+      }
+      canvas.drawLine(Offset(plot.right, plot.top), Offset(plot.right, plot.bottom),
+          Paint()
+            ..color = _color(c2).faded(.6)
+            ..strokeWidth = 1.2);
+    }
+    final zeroY = sy1(0).clamp(plot.top, plot.bottom).toDouble();
+    canvas.drawLine(Offset(plot.left, zeroY), Offset(plot.right, zeroY),
         Paint()
           ..color = theme.axisColor
           ..strokeWidth = 1.2);
 
+    // ---- x labels (+ vertical grid)
+    final xTicks = <MapEntry<double, String>>[];
     if (xLabels != null) {
       final n = xLabels!.length;
+      final first = math.max(0, (vLo - 1e-9).ceil());
+      final last = math.min(n - 1, (vHi + 1e-9).floor());
       final maxW = xLabels!
           .map((l) => measureText(l, theme.labelStyle).width)
           .fold<double>(0, math.max);
-      final unit = plot.width / n;
+      final unit = plot.width / (vHi - vLo);
       final every = math.max(1, ((maxW + 8) / unit).ceil());
-      for (var i = 0; i < n; i += every) {
-        paintText(canvas, xLabels![i], Offset(sx(i.toDouble()), plot.bottom + 6),
-            theme.labelStyle,
-            align: Alignment.topCenter, maxWidth: unit * every);
+      for (var i = (first / every).ceil() * every; i <= last; i += every) {
+        xTicks.add(MapEntry(i.toDouble(), xLabels![i]));
       }
     } else {
-      for (final t in NiceScale.compute(xLo, xHi, maxTicks: 6).ticks) {
-        if (t < xLo - 1e-9 || t > xHi + 1e-9) continue;
-        paintText(canvas, formatNumber(t), Offset(sx(t), plot.bottom + 6),
-            theme.labelStyle,
-            align: Alignment.topCenter);
+      final xf = o.xFormat ?? formatNumber;
+      for (final t in NiceScale.compute(vLo, vHi, maxTicks: 6).ticks) {
+        if (t >= vLo - 1e-9 && t <= vHi + 1e-9) xTicks.add(MapEntry(t, xf(t)));
+      }
+    }
+    for (final e in xTicks) {
+      if (vGrid) {
+        _line(canvas, Offset(sx(e.key), plot.top), Offset(sx(e.key), plot.bottom), gridPaint, o.dashedGrid);
+      }
+      paintText(canvas, e.value, Offset(sx(e.key), plot.bottom + 6),
+          theme.labelStyle,
+          align: Alignment.topCenter);
+    }
+
+    // ---- axis titles
+    final titleStyle = theme.labelStyle
+        .copyWith(color: theme.textColor, fontWeight: FontWeight.w600);
+    if (o.xAxisTitle != null) {
+      paintText(canvas, o.xAxisTitle!, Offset(plot.center.dx, size.height - 2),
+          titleStyle, align: Alignment.bottomCenter);
+    }
+    if (o.yAxisTitle != null) {
+      _rotText(canvas, o.yAxisTitle!, Offset(8, plot.center.dy), -math.pi / 2, titleStyle);
+    }
+    if (o.secondaryAxisTitle != null && s2 != null) {
+      _rotText(canvas, o.secondaryAxisTitle!, Offset(size.width - 8, plot.center.dy), math.pi / 2, titleStyle);
+    }
+
+    // ---- reference lines
+    for (final r in o.referenceLines) {
+      final y = sy1(r.value);
+      if (y < plot.top || y > plot.bottom) continue;
+      final c = r.color ?? theme.colorAt(2);
+      _line(canvas, Offset(plot.left, y), Offset(plot.right, y),
+          Paint()
+            ..color = c
+            ..strokeWidth = 1.5,
+          r.dashed);
+      if (r.label != null) {
+        paintText(canvas, r.label!, Offset(plot.right - 4, y - 2),
+            theme.labelStyle.copyWith(color: c, fontWeight: FontWeight.w600),
+            align: Alignment.bottomRight);
       }
     }
 
@@ -211,14 +349,15 @@ class _CartesianPainter extends CustomPainter {
     if (bars.isNotEmpty) {
       canvas.save();
       canvas.clipRect(plot.inflate(1));
-      final unit = plot.width / (xHi - xLo);
-      final groupW = unit * 0.72;
+      final unit = plot.width / (vHi - vLo);
+      final groupW = unit * o.barWidthFactor;
       final pos = <double, double>{};
       final neg = <double, double>{};
       for (var j = 0; j < bars.length; j++) {
         final si = bars[j];
+        final bs = series[si] as BarSeries;
         final paint = Paint()..color = _color(si);
-        for (final p in series[si].points) {
+        for (final p in bs.points) {
           double y0, y1, left, width;
           if (stacked) {
             width = groupW;
@@ -238,11 +377,13 @@ class _CartesianPainter extends CustomPainter {
             y0 = 0;
             y1 = p.y;
           }
-          final a = sy(y0), b = sy(y0 + (y1 - y0) * progress);
+          if (left + width < plot.left || left > plot.right) continue;
+          final a = sy1(y0), b = sy1(y0 + (y1 - y0) * progress);
           final rect = Rect.fromLTRB(
               left + 1, math.min(a, b), left + width - 1, math.max(a, b));
-          final rad =
-              stacked ? Radius.zero : Radius.circular(math.min(4.0, width / 2));
+          final rad = stacked
+              ? Radius.zero
+              : Radius.circular(math.min(bs.cornerRadius, width / 2));
           final up = p.y >= 0;
           canvas.drawRRect(
               RRect.fromRectAndCorners(rect,
@@ -251,6 +392,19 @@ class _CartesianPainter extends CustomPainter {
                   bottomLeft: up ? Radius.zero : rad,
                   bottomRight: up ? Radius.zero : rad),
               paint);
+          if (o.showValueLabels && progress > .99) {
+            if (stacked) {
+              if (rect.height > 14 && rect.width > 22) {
+                paintText(canvas, f1(p.y), rect.center,
+                    TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: contrastOn(_color(si))));
+              }
+            } else {
+              paintText(canvas, f1(p.y),
+                  Offset(rect.center.dx, up ? rect.top - 2 : rect.bottom + 2),
+                  theme.labelStyle,
+                  align: up ? Alignment.bottomCenter : Alignment.topCenter);
+            }
+          }
         }
       }
       canvas.restore();
@@ -267,16 +421,17 @@ class _CartesianPainter extends CustomPainter {
           plot.left - 8 + (plot.width + 16) * progress, plot.bottom + 8));
       for (final si in lineIdx) {
         final s = series[si] as LineSeries;
+        final syS = syOf(s);
         final color = _color(si);
         final pts = [...s.points]..sort((a, b) => a.x.compareTo(b.x));
         if (pts.isEmpty) continue;
-        final o = [for (final p in pts) Offset(sx(p.x), sy(p.y))];
-        final path = _buildPath(o, s.curved, s.stepped);
+        final off = [for (final p in pts) Offset(sx(p.x), syS(p.y))];
+        final path = buildLinePath(off, curved: s.curved, stepped: s.stepped);
         if (s.fill) {
-          final base = sy(0).clamp(plot.top, plot.bottom).toDouble();
+          final base = syS(0).clamp(plot.top, plot.bottom).toDouble();
           final area = Path.from(path)
-            ..lineTo(o.last.dx, base)
-            ..lineTo(o.first.dx, base)
+            ..lineTo(off.last.dx, base)
+            ..lineTo(off.first.dx, base)
             ..close();
           canvas.drawPath(
               area,
@@ -296,9 +451,10 @@ class _CartesianPainter extends CustomPainter {
               ..strokeCap = StrokeCap.round
               ..strokeJoin = StrokeJoin.round);
         if (s.showMarkers) {
-          for (final pt in o) {
-            canvas.drawCircle(pt, 4, Paint()..color = color);
-            canvas.drawCircle(pt, 2, Paint()..color = theme.surface);
+          for (final pt in off) {
+            if (pt.dx < plot.left - 8 || pt.dx > plot.right + 8) continue;
+            canvas.drawCircle(pt, s.markerRadius, Paint()..color = color);
+            canvas.drawCircle(pt, s.markerRadius / 2, Paint()..color = theme.surface);
           }
         }
       }
@@ -306,19 +462,23 @@ class _CartesianPainter extends CustomPainter {
     }
 
     // ---- scatter / bubble
+    canvas.save();
+    canvas.clipRect(plot.inflate(30));
     for (var si = 0; si < series.length; si++) {
       final s = series[si];
       if (s is! ScatterSeries) continue;
+      final syS = syOf(s);
       final color = _color(si);
       final maxSize =
           s.points.fold<double>(0, (m, p) => math.max(m, p.size ?? 0));
       for (final p in s.points) {
         final r = (p.size != null && maxSize > 0)
-            ? 6 + 20 * math.sqrt(p.size! / maxSize)
+            ? 6 + (s.maxBubbleRadius - 6) * math.sqrt(p.size! / maxSize)
             : s.markerSize;
-        final c = Offset(sx(p.x), sy(p.y));
-        canvas.drawCircle(
-            c, r * progress, Paint()..color = color.faded(p.size != null ? .55 : .85));
+        final c = Offset(sx(p.x), syS(p.y));
+        if (c.dx < plot.left - r || c.dx > plot.right + r) continue;
+        canvas.drawCircle(c, r * progress,
+            Paint()..color = color.faded(p.size != null ? .55 : .85));
         if (p.size != null) {
           canvas.drawCircle(
               c,
@@ -330,49 +490,34 @@ class _CartesianPainter extends CustomPainter {
         }
       }
     }
+    canvas.restore();
 
     // ---- tooltip
     final ptr = pointer;
     if (ptr != null && progress >= 1 && plot.inflate(10).contains(ptr)) {
-      _tooltip(canvas, size, plot, ptr, sx, sy, fmt);
+      _tooltip(canvas, size, plot, ptr, sx, syOf, f1, f2);
     }
   }
 
-  Path _buildPath(List<Offset> o, bool curved, bool stepped) {
-    final p = Path()..moveTo(o.first.dx, o.first.dy);
-    if (stepped) {
-      for (var i = 1; i < o.length; i++) {
-        p.lineTo(o[i].dx, o[i - 1].dy);
-        p.lineTo(o[i].dx, o[i].dy);
-      }
-    } else if (curved && o.length > 2) {
-      for (var i = 0; i < o.length - 1; i++) {
-        final p0 = o[math.max(i - 1, 0)];
-        final p1 = o[i];
-        final p2 = o[i + 1];
-        final p3 = o[math.min(i + 2, o.length - 1)];
-        final c1 = p1 + (p2 - p0) / 6;
-        final c2 = p2 - (p3 - p1) / 6;
-        p.cubicTo(c1.dx, c1.dy, c2.dx, c2.dy, p2.dx, p2.dy);
-      }
-    } else {
-      for (var i = 1; i < o.length; i++) {
-        p.lineTo(o[i].dx, o[i].dy);
-      }
-    }
-    return p;
-  }
-
-  void _tooltip(Canvas canvas, Size size, Rect plot, Offset ptr,
-      double Function(double) sx, double Function(double) sy,
-      String Function(double) fmt) {
+  void _tooltip(
+      Canvas canvas,
+      Size size,
+      Rect plot,
+      Offset ptr,
+      double Function(double) sx,
+      double Function(double) Function(CartesianSeries) syOf,
+      String Function(double) f1,
+      String Function(double) f2) {
+    String fmtFor(CartesianSeries s, double v) => _isSec(s) ? f2(v) : f1(v);
     final cart = [
       for (var i = 0; i < series.length; i++)
         if (series[i] is! ScatterSeries) i
     ];
     if (cart.isNotEmpty) {
       final xs = <double>{
-        for (final i in cart) for (final p in series[i].points) p.x
+        for (final i in cart)
+          for (final p in series[i].points)
+            if (sx(p.x) >= plot.left - 1 && sx(p.x) <= plot.right + 1) p.x
       };
       double? best;
       for (final x in xs) {
@@ -380,42 +525,44 @@ class _CartesianPainter extends CustomPainter {
           best = x;
         }
       }
-      if (best == null) return;
-      final bx = best;
-      canvas.drawLine(
-          Offset(sx(bx), plot.top),
-          Offset(sx(bx), plot.bottom),
-          Paint()
-            ..color = theme.axisColor.faded(.6)
-            ..strokeWidth = 1);
-      final rows = <TooltipRow>[];
-      for (final i in cart) {
-        final s = series[i];
-        for (final p in s.points) {
-          if (p.x != bx) continue;
-          rows.add(TooltipRow('${s.name}: ${fmt(p.y)}', color: _color(i)));
-          if (s is LineSeries) {
-            canvas.drawCircle(Offset(sx(bx), sy(p.y)), 5.5, Paint()..color = _color(i));
-            canvas.drawCircle(Offset(sx(bx), sy(p.y)), 2.5, Paint()..color = theme.surface);
+      if (best != null) {
+        final bx = best;
+        canvas.drawLine(Offset(sx(bx), plot.top), Offset(sx(bx), plot.bottom),
+            Paint()
+              ..color = theme.axisColor.faded(.6)
+              ..strokeWidth = 1);
+        final rows = <TooltipRow>[];
+        for (final i in cart) {
+          final s = series[i];
+          for (final p in s.points) {
+            if (p.x != bx) continue;
+            rows.add(TooltipRow('${s.name}: ${fmtFor(s, p.y)}', color: _color(i)));
+            if (s is LineSeries) {
+              final c = Offset(sx(bx), syOf(s)(p.y));
+              canvas.drawCircle(c, 5.5, Paint()..color = _color(i));
+              canvas.drawCircle(c, 2.5, Paint()..color = theme.surface);
+            }
+            break;
           }
-          break;
         }
+        final idx = bx.round();
+        final title = (xLabels != null && idx >= 0 && idx < xLabels!.length)
+            ? xLabels![idx]
+            : (o.xFormat ?? formatNumber)(bx);
+        paintTooltip(canvas, size, Offset(sx(bx), ptr.dy), theme,
+            title: title, rows: rows);
+        return;
       }
-      final idx = bx.round();
-      final title = (xLabels != null && idx >= 0 && idx < xLabels!.length)
-          ? xLabels![idx]
-          : formatNumber(bx);
-      paintTooltip(canvas, size, Offset(sx(bx), ptr.dy), theme,
-          title: title, rows: rows);
-      return;
     }
-    // scatter-only: nearest point
+    // scatter: nearest point
     double bestD = 30;
     int? bi;
     DataPoint? bp;
     for (var i = 0; i < series.length; i++) {
+      if (series[i] is! ScatterSeries) continue;
+      final syS = syOf(series[i]);
       for (final p in series[i].points) {
-        final d = (Offset(sx(p.x), sy(p.y)) - ptr).distance;
+        final d = (Offset(sx(p.x), syS(p.y)) - ptr).distance;
         if (d < bestD) {
           bestD = d;
           bi = i;
@@ -424,17 +571,16 @@ class _CartesianPainter extends CustomPainter {
       }
     }
     if (bp == null || bi == null) return;
-    final c = Offset(sx(bp.x), sy(bp.y));
-    canvas.drawCircle(
-        c,
-        9,
+    final c = Offset(sx(bp.x), syOf(series[bi])(bp.y));
+    canvas.drawCircle(c, 9,
         Paint()
           ..color = _color(bi)
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2);
     final extra = bp.size == null ? '' : '  size ${formatNumber(bp.size!)}';
     paintTooltip(canvas, size, c, theme, title: series[bi].name, rows: [
-      TooltipRow('(${formatNumber(bp.x)}, ${fmt(bp.y)})$extra', color: _color(bi))
+      TooltipRow('(${formatNumber(bp.x)}, ${fmtFor(series[bi], bp.y)})$extra',
+          color: _color(bi))
     ]);
   }
 

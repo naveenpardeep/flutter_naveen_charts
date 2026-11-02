@@ -5,91 +5,100 @@ import '../core/chart_utils.dart';
 import 'cartesian_chart.dart';
 import 'models.dart';
 
-/// Line chart (curved, stepped, dashed and area-filled lines via [LineSeries]).
+/// Line chart (curved, stepped, dashed lines via [LineSeries]).
 class LineChart extends StatelessWidget {
   const LineChart(
       {super.key,
       required this.series,
       this.xLabels,
+      this.options = const CartesianOptions(),
       this.aspectRatio = 1.6,
-      this.theme,
-      this.yFormat,
-      this.yMin,
-      this.yMax});
+      this.theme});
   final List<LineSeries> series;
   final List<String>? xLabels;
+  final CartesianOptions options;
   final double aspectRatio;
   final ChartTheme? theme;
-  final String Function(double)? yFormat;
-  final double? yMin, yMax;
 
   @override
   Widget build(BuildContext context) => CartesianChart(
       series: series,
       xLabels: xLabels,
+      options: options,
       aspectRatio: aspectRatio,
-      theme: theme,
-      yFormat: yFormat,
-      yMin: yMin,
-      yMax: yMax);
+      theme: theme);
 }
 
-/// Area chart: lines with a gradient fill.
+/// Area chart: lines with a gradient fill. (See also `StackedAreaChart`.)
 class AreaChart extends StatelessWidget {
   const AreaChart(
       {super.key,
       required this.series,
       this.xLabels,
+      this.options = const CartesianOptions(),
       this.aspectRatio = 1.6,
       this.theme});
   final List<AreaSeries> series;
   final List<String>? xLabels;
+  final CartesianOptions options;
   final double aspectRatio;
   final ChartTheme? theme;
 
   @override
   Widget build(BuildContext context) => CartesianChart(
-      series: series, xLabels: xLabels, aspectRatio: aspectRatio, theme: theme);
+      series: series,
+      xLabels: xLabels,
+      options: options,
+      aspectRatio: aspectRatio,
+      theme: theme);
 }
 
 /// Vertical bar chart; set [stacked] for stacked bars.
+/// For horizontal bars see `HorizontalBarChart`.
 class BarChart extends StatelessWidget {
   const BarChart(
       {super.key,
       required this.series,
       this.xLabels,
       this.stacked = false,
+      this.options = const CartesianOptions(),
       this.aspectRatio = 1.6,
-      this.theme,
-      this.yFormat});
+      this.theme});
   final List<BarSeries> series;
   final List<String>? xLabels;
   final bool stacked;
+  final CartesianOptions options;
   final double aspectRatio;
   final ChartTheme? theme;
-  final String Function(double)? yFormat;
 
   @override
   Widget build(BuildContext context) => CartesianChart(
       series: series,
       xLabels: xLabels,
       barMode: stacked ? BarMode.stacked : BarMode.grouped,
+      options: options,
       aspectRatio: aspectRatio,
-      theme: theme,
-      yFormat: yFormat);
+      theme: theme);
 }
+
+typedef ColumnChart = BarChart;
 
 /// Scatter chart. Give points a `size` and it becomes a bubble chart.
 class ScatterChart extends StatelessWidget {
   const ScatterChart(
-      {super.key, required this.series, this.aspectRatio = 1.4, this.theme});
+      {super.key,
+      required this.series,
+      this.options = const CartesianOptions(),
+      this.aspectRatio = 1.4,
+      this.theme});
   final List<ScatterSeries> series;
+  final CartesianOptions options;
   final double aspectRatio;
   final ChartTheme? theme;
 
   @override
-  Widget build(BuildContext context) =>
-      CartesianChart(series: series, aspectRatio: aspectRatio, theme: theme);
+  Widget build(BuildContext context) => CartesianChart(
+      series: series, options: options, aspectRatio: aspectRatio, theme: theme);
 }
 
 typedef BubbleChart = ScatterChart;
@@ -101,11 +110,13 @@ class Histogram extends StatelessWidget {
       required this.values,
       this.bins = 10,
       this.color,
+      this.options = const CartesianOptions(showLegend: false),
       this.aspectRatio = 1.6,
       this.theme});
   final List<double> values;
   final int bins;
   final Color? color;
+  final CartesianOptions options;
   final double aspectRatio;
   final ChartTheme? theme;
 
@@ -124,7 +135,7 @@ class Histogram extends StatelessWidget {
     return CartesianChart(
       series: [BarSeries.fromValues(name: 'Count', values: counts, color: color)],
       xLabels: [for (var i = 0; i < bins; i++) formatNumber(lo + i * width)],
-      showLegend: false,
+      options: options,
       aspectRatio: aspectRatio,
       theme: theme,
     );

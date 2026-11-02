@@ -156,3 +156,47 @@ void paintTooltip(Canvas canvas, Size bounds, Offset anchor, ChartTheme theme,
     cy += t.height + lineGap;
   }
 }
+
+/// Polyline through [o]; optionally smoothed (Catmull-Rom style) or stepped.
+Path buildLinePath(List<Offset> o, {bool curved = false, bool stepped = false}) {
+  final p = Path();
+  if (o.isEmpty) return p;
+  p.moveTo(o.first.dx, o.first.dy);
+  if (stepped) {
+    for (var i = 1; i < o.length; i++) {
+      p.lineTo(o[i].dx, o[i - 1].dy);
+      p.lineTo(o[i].dx, o[i].dy);
+    }
+  } else if (curved && o.length > 2) {
+    for (var i = 0; i < o.length - 1; i++) {
+      final p0 = o[math.max(i - 1, 0)];
+      final p1 = o[i];
+      final p2 = o[i + 1];
+      final p3 = o[math.min(i + 2, o.length - 1)];
+      final c1 = p1 + (p2 - p0) / 6;
+      final c2 = p2 - (p3 - p1) / 6;
+      p.cubicTo(c1.dx, c1.dy, c2.dx, c2.dy, p2.dx, p2.dy);
+    }
+  } else {
+    for (var i = 1; i < o.length; i++) {
+      p.lineTo(o[i].dx, o[i].dy);
+    }
+  }
+  return p;
+}
+
+/// Ring sector between radii [r0] and [r1] (r0 = 0 gives a pie wedge).
+Path sectorPath(Offset c, double r0, double r1, double a0, double sweep) {
+  final p = Path()..arcTo(Rect.fromCircle(center: c, radius: r1), a0, sweep, true);
+  if (r0 > 0) {
+    p.arcTo(Rect.fromCircle(center: c, radius: r0), a0 + sweep, -sweep, false);
+  } else {
+    p.lineTo(c.dx, c.dy);
+  }
+  p.close();
+  return p;
+}
+
+/// Black or white, whichever reads better on [bg].
+Color contrastOn(Color bg) =>
+    bg.computeLuminance() > .5 ? Colors.black87 : Colors.white;

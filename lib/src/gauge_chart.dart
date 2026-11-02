@@ -54,7 +54,6 @@ class GaugeChart extends StatelessWidget {
   }
 }
 
-/// Gauge Painter
 class _GaugePainter extends CustomPainter {
   _GaugePainter(this.g, this.theme, this.progress);
   final GaugeChart g;
@@ -109,7 +108,6 @@ class _GaugePainter extends CustomPainter {
             ..color = vc);
     }
 
-    /// Paint text
     paintText(
         canvas,
         '${formatNumber(g.value * progress)}${g.unit}',
