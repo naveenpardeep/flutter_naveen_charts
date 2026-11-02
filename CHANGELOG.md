@@ -1,3 +1,6 @@
+## 1.0.4
+-  10 + charts added
+
 ## 1.0.3
 - Licence updated 
 
