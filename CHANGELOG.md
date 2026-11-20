@@ -1,3 +1,7 @@
+# 1.0.5
+-  50 + charts added
+
+
 ## 1.0.4
 -  10 + charts added
 
