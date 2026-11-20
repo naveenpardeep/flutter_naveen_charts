@@ -11,9 +11,13 @@ class Candle {
     required this.high,
     required this.low,
     required this.close,
+    this.volume = 0,
   });
   final String label;
   final double open, high, low, close;
+
+  /// Traded volume (optional; used by `FinanceChart`).
+  final double volume;
 }
 
 /// OHLC candlestick chart.
